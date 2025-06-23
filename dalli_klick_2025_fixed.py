@@ -32,6 +32,7 @@ GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 DARK_BLUE = (0, 70, 180)
 DARK_GREEN = (0, 100, 0)
+BUTTON_TEXT = (255, 255, 255)  # Weiß für Text auf Buttons
 
 class DalliKlickGame:
     def __init__(self):
@@ -54,6 +55,12 @@ class DalliKlickGame:
         self.tiles = []
         self.revealed_tiles = set()
         self.selected_folder = ""
+        self.image_titles = []  # Liste der Bildtitel (Dateinamen ohne Endung)
+        self.solution_input = None  # Eingabefeld für die Lösung
+        self.solution_checked = False  # Ob die Lösung schon geprüft wurde
+        self.solution_correct = False  # Ob die Lösung korrekt war
+        self.last_solution = ""
+        self.selected_difficulty = 3  # Standard: 3x3
         
         # UI Elemente
         self.font_large = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 48)
@@ -66,125 +73,106 @@ class DalliKlickGame:
         self.default_folder = str(Path.home() / "Desktop" / "DK Fotos")
         self.create_ui_elements()
         
+        # UI Theme für Buttons setzen
+        self.set_custom_theme()
+        
+        # --- Neue Button-Rects für das Menü (werden in draw_menu gesetzt) ---
+        self.menu_btn_rects = {}
+        self.menu_btn_pressed = None  # Für visuelles Feedback
+        self.shuffle_mode = False
+        
     def create_ui_elements(self):
-        """UI Elemente erstellen"""
-        # Hauptmenü Buttons
-        button_width = 250
-        button_height = 50
-        start_y = 400
-        
-        # Start Button
-        self.buttons['start'] = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect((SCREEN_WIDTH - button_width) // 2, start_y, button_width, button_height),
-            text='Spiel starten',
-            manager=self.manager
-        )
-        
-        # Einstellungen Button
-        self.buttons['settings'] = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect((SCREEN_WIDTH - button_width) // 2, start_y + 70, button_width, button_height),
-            text='Einstellungen',
-            manager=self.manager
-        )
-        
-        # Beenden Button
-        self.buttons['quit'] = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect((SCREEN_WIDTH - button_width) // 2, start_y + 140, button_width, button_height),
-            text='Beenden',
-            manager=self.manager
-        )
-        
-        # Einstellungen UI
+        """UI Elemente erstellen (nur noch für andere Screens, nicht für das Menü)"""
+        # Entferne alle UIManager-Buttons für das Menü!
+        # (Die grünen Menü-Buttons werden manuell gezeichnet und verwaltet)
+        self.buttons = {}
         self.buttons['back'] = pygame_gui.elements.UIButton(
             relative_rect=pygame.Rect(50, 50, 100, 40),
             text='Zurück',
             manager=self.manager
         )
-        
-        # Schwierigkeits-Buttons
-        difficulties = [3, 4, 5, 6, 8]
-        diff_button_width = 80
-        diff_start_x = (SCREEN_WIDTH - len(difficulties) * (diff_button_width + 10)) // 2
-        diff_y = 300
-        
-        for i, diff in enumerate(difficulties):
-            self.buttons[f'diff_{diff}'] = pygame_gui.elements.UIButton(
-                relative_rect=pygame.Rect(diff_start_x + i * (diff_button_width + 10), diff_y, diff_button_width, 40),
-                text=f'{diff}x{diff}',
-                manager=self.manager
-            )
-        
         # Spiel-UI
         self.buttons['next'] = pygame_gui.elements.UIButton(
             relative_rect=pygame.Rect(SCREEN_WIDTH - 150, 50, 120, 40),
             text='Nächstes Bild',
             manager=self.manager
         )
-        
         self.buttons['menu'] = pygame_gui.elements.UIButton(
             relative_rect=pygame.Rect(50, 50, 100, 40),
             text='Menü',
             manager=self.manager
         )
-        
-        # Ordner-Auswahl UI
-        self.buttons['select_folder'] = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect((SCREEN_WIDTH - button_width) // 2, 350, button_width, button_height),
-            text='Ordner auswählen',
-            manager=self.manager
-        )
-        
-        self.buttons['use_default'] = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect((SCREEN_WIDTH - button_width) // 2, 420, button_width, button_height),
-            text='Standard-Ordner verwenden',
-            manager=self.manager
-        )
-        
         # Ordner-Pfad Text
         self.folder_text = pygame_gui.elements.UILabel(
             relative_rect=pygame.Rect(100, 500, SCREEN_WIDTH - 200, 30),
             text=f'Standard-Ordner: {self.default_folder}',
             manager=self.manager
         )
-        
+        # Eingabefeld für die Lösung (wird im Spielmodus angezeigt)
+        self.solution_input = pygame_gui.elements.UITextEntryLine(
+            relative_rect=pygame.Rect((SCREEN_WIDTH - 400) // 2, SCREEN_HEIGHT - 180, 400, 40),
+            manager=self.manager
+        )
+        self.solution_input.hide()
         # Alle Buttons zunächst verstecken
         self.hide_all_buttons()
         
     def hide_all_buttons(self):
-        """Alle Buttons verstecken"""
-        for button in self.buttons.values():
-            button.hide()
-        if hasattr(self, 'folder_text'):
+        """Entfernt alle pygame_gui-Elemente (Buttons etc.) zuverlässig."""
+        if hasattr(self, "ui_manager"):
+            for element in list(self.ui_manager.ui_group.elements):
+                element.kill()
+            self.ui_manager.clear_and_reset()
+        # Optional: Falls weitere GUI-Elemente wie UIWindow, UIPanel, UIContainer existieren,
+        # sollten diese ebenfalls explizit gekillt werden (z.B. über self.gui_elements oder self.windows)
+        if hasattr(self, 'folder_text') and self.folder_text is not None:
             self.folder_text.hide()
     
     def show_menu_buttons(self):
-        """Hauptmenü Buttons anzeigen"""
+        """Hauptmenü Buttons anzeigen (keine UIManager-Buttons mehr im Menü)"""
         self.hide_all_buttons()
-        self.buttons['start'].show()
-        self.buttons['settings'].show()
-        self.buttons['quit'].show()
+        if self.solution_input is not None:
+            self.solution_input.hide()
     
     def show_settings_buttons(self):
-        """Einstellungen Buttons anzeigen"""
+        """Einstellungen Buttons anzeigen (UIManager-Buttons für Settings)"""
         self.hide_all_buttons()
-        self.buttons['back'].show()
-        for key in self.buttons:
-            if key.startswith('diff_'):
-                self.buttons[key].show()
+        if hasattr(self, 'buttons') and isinstance(self.buttons, dict):
+            # Nur für UIManager-Buttons außerhalb des Menüs
+            for key in self.buttons:
+                btn = self.buttons[key]
+                if hasattr(btn, 'show'):
+                    btn.show()
+        if self.solution_input is not None:
+            self.solution_input.hide()
     
     def show_folder_select_buttons(self):
-        """Ordner-Auswahl Buttons anzeigen"""
+        """Ordner-Auswahl Buttons anzeigen (UIManager-Buttons für Ordnerauswahl)"""
         self.hide_all_buttons()
-        self.buttons['select_folder'].show()
-        self.buttons['use_default'].show()
-        self.buttons['back'].show()
-        self.folder_text.show()
+        if hasattr(self, 'buttons') and isinstance(self.buttons, dict):
+            for key in self.buttons:
+                btn = self.buttons[key]
+                if hasattr(btn, 'show'):
+                    btn.show()
+        if hasattr(self, 'folder_text') and self.folder_text is not None:
+            self.folder_text.show()
+        if self.solution_input is not None:
+            self.solution_input.hide()
     
     def show_game_buttons(self):
-        """Spiel-Buttons anzeigen"""
+        """Spiel-Buttons anzeigen (UIManager-Buttons für das Spiel)"""
         self.hide_all_buttons()
-        self.buttons['next'].show()
-        self.buttons['menu'].show()
+        if hasattr(self, 'buttons') and isinstance(self.buttons, dict):
+            for key in self.buttons:
+                btn = self.buttons[key]
+                if hasattr(btn, 'show'):
+                    btn.show()
+        if self.solution_input is not None:
+            self.solution_input.set_text("")
+            self.solution_input.show()
+        self.solution_checked = False
+        self.solution_correct = False
+        self.last_solution = ""
     
     def select_folder_dialog(self):
         """Einfacher Ordner-Auswahl-Dialog"""
@@ -196,6 +184,7 @@ class DalliKlickGame:
     def load_images_from_folder(self, folder_path):
         """Bilder aus dem angegebenen Ordner laden"""
         self.images = []
+        self.image_titles = []
         if not os.path.exists(folder_path):
             return False
             
@@ -208,6 +197,7 @@ class DalliKlickGame:
                     image_path = os.path.join(folder_path, filename)
                     image = pygame.image.load(image_path)
                     self.images.append(image)
+                    self.image_titles.append(os.path.splitext(filename)[0])
                 except pygame.error as e:
                     print(f"Fehler beim Laden von {filename}: {e}")
         
@@ -229,6 +219,7 @@ class DalliKlickGame:
             
         self.current_image_index = 0
         self.state = "game"
+        self.grid_size = self.selected_difficulty
         self.load_current_image()
         self.show_game_buttons()
         return True
@@ -298,13 +289,10 @@ class DalliKlickGame:
                 })
     
     def handle_events(self):
-        """Ereignisse verarbeiten"""
         time_delta = self.clock.tick(FPS)/1000.0
-        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False
-                
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if self.state == "game":
@@ -319,62 +307,68 @@ class DalliKlickGame:
                     elif self.state == "victory":
                         self.state = "menu"
                         self.show_menu_buttons()
-                        
                 elif event.key == pygame.K_SPACE and self.state == "game":
                     self.next_image()
-                    
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1 and self.state == "game":  # Linksklick
+                if self.state == "menu":
+                    for key, rect in self.menu_btn_rects.items():
+                        if rect and rect.collidepoint(event.pos):
+                            self.menu_btn_pressed = key
+                            break
+                elif event.button == 1 and self.state == "game":
                     self.handle_click(event.pos)
-                    
-            # pygame_gui Events
-            if event.type == pygame.USEREVENT:
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if self.state == "menu" and self.menu_btn_pressed:
+                    key = self.menu_btn_pressed
+                    rect = self.menu_btn_rects.get(key)
+                    if rect and rect.collidepoint(event.pos):
+                        if key == 'start':
+                            self.start_game()
+                        elif key == 'settings':
+                            self.state = "settings"
+                            self.show_settings_buttons()
+                        elif key == 'quit' or key == 'beenden':
+                            pygame.quit()
+                            sys.exit()
+                        elif key == 'sort_name' or key == 'nach_name':
+                            self.shuffle_mode = False
+                        elif key == 'sort_shuffle' or key == 'zufaellig':
+                            self.shuffle_mode = True
+                        elif key == 'diff_small' or key == 'klein':
+                            self.selected_difficulty = 3
+                        elif key == 'diff_large' or key == 'gross':
+                            self.selected_difficulty = 6
+                    self.menu_btn_pressed = None
+            # pygame_gui Events (nur noch für andere Screens, nicht für das Menü)
+            if event.type == pygame.USEREVENT and self.state != "menu":
                 if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
-                    if event.ui_element == self.buttons['start']:
-                        if self.start_game():
-                            pass
-                        else:
-                            self.state = "folder_select"
-                            self.show_folder_select_buttons()
-                            
-                    elif event.ui_element == self.buttons['settings']:
-                        self.state = "settings"
-                        self.show_settings_buttons()
-                        
-                    elif event.ui_element == self.buttons['quit']:
-                        return False
-                        
-                    elif event.ui_element == self.buttons['back']:
+                    if self.buttons.get('back') is not None and event.ui_element == self.buttons['back']:
                         self.state = "menu"
                         self.show_menu_buttons()
-                        
-                    elif event.ui_element == self.buttons['next']:
+                    elif self.buttons.get('next') is not None and event.ui_element == self.buttons['next']:
                         self.next_image()
-                        
-                    elif event.ui_element == self.buttons['menu']:
+                    elif self.buttons.get('menu') is not None and event.ui_element == self.buttons['menu']:
                         self.state = "menu"
                         self.show_menu_buttons()
-                        
-                    elif event.ui_element == self.buttons['select_folder']:
+                    elif self.buttons.get('select_folder') is not None and event.ui_element == self.buttons['select_folder']:
                         folder = self.select_folder_dialog()
                         if folder and self.load_images_from_folder(folder):
                             self.selected_folder = folder
                             self.start_game()
-                            
-                    elif event.ui_element == self.buttons['use_default']:
+                    elif self.buttons.get('use_default') is not None and event.ui_element == self.buttons['use_default']:
                         if self.load_images_from_folder(self.default_folder):
                             self.selected_folder = self.default_folder
                             self.start_game()
-                            
-                    # Schwierigkeits-Buttons
-                    for key in self.buttons:
-                        if key.startswith('diff_'):
-                            if event.ui_element == self.buttons[key]:
-                                self.grid_size = int(key.split('_')[1])
-                                break
-            
+                elif event.user_type == pygame_gui.UI_TEXT_ENTRY_FINISHED and self.solution_input is not None and event.ui_element == self.solution_input:
+                    user_input = self.solution_input.get_text().strip().lower()
+                    image_title = self.image_titles[self.current_image_index].strip().lower() if self.current_image_index < len(self.image_titles) else ""
+                    self.last_solution = user_input
+                    if user_input == image_title:
+                        self.revealed_tiles = set(range(len(self.tiles)))
+                        self.solution_correct = True
+                        self.solution_input.disable()
+                    self.solution_checked = True
             self.manager.process_events(event)
-        
         self.manager.update(time_delta)
         return True
     
@@ -398,63 +392,163 @@ class DalliKlickGame:
         """Siegesschirm anzeigen"""
         self.state = "victory"
         self.hide_all_buttons()
+        if self.solution_input is not None:
+            self.solution_input.hide()
     
     def draw_menu(self):
-        """Hauptmenü zeichnen"""
+        self.hide_all_buttons()  # Vor jedem Neuzeichnen des Menüs alle alten UI-Elemente entfernen
+        # 🧱 Block 1: Neue grüne Buttons als Dict (nur für das Menü)
+        # Berechne zentrale Positionen wie gehabt
+        block_width = 240
+        block_spacing = 48
+        total_width = 3 * block_width + 2 * block_spacing
+        group_left = (SCREEN_WIDTH - total_width) // 2
+        x2 = group_left + block_width + block_spacing
+        center_x = x2 + block_width // 2
+        button_w, button_h = 200, 50
+        button_spacing = 30
+        button_group_left = center_x - button_w // 2
+        button_group_top = 204 + 220 + 60  # block_top + block_height + 60
+        self.buttons = {
+            'nach_name': {'rect': self.menu_btn_rects.get('sort_name'), 'text': 'Nach Name'},
+            'zufaellig': {'rect': self.menu_btn_rects.get('sort_shuffle'), 'text': 'Zufällig'},
+            'klein': {'rect': self.menu_btn_rects.get('diff_small'), 'text': 'Klein'},
+            'gross': {'rect': self.menu_btn_rects.get('diff_large'), 'text': 'Groß'},
+            'start': {'rect': pygame.Rect(button_group_left, button_group_top, button_w, button_h), 'text': 'Spiel starten'},
+            'settings': {'rect': pygame.Rect(button_group_left, button_group_top + button_h + button_spacing, button_w, button_h), 'text': 'Einstellungen'},
+            'beenden': {'rect': pygame.Rect(button_group_left, button_group_top + 2 * (button_h + button_spacing), button_w, button_h), 'text': 'Beenden'}
+        }
+        # 🧱 Block 4: Zusätzliche Absicherung – lösche alte Button-Einträge
+        for key in list(self.buttons.keys()):
+            if key not in ['nach_name', 'zufaellig', 'klein', 'gross', 'start', 'settings', 'beenden']:
+                del self.buttons[key]
         self.screen.fill(WHITE)
-        # Titel
-        title = self.font_large.render("Dalli Klick 2025", True, BLACK)
-        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 200))
+        # Titel etwas nach unten verschoben
+        title = self.font_large.render("Dalli Klick", True, DARK_GREEN)
+        title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 120 + 24))
         self.screen.blit(title, title_rect)
-
-        # Spalten-Konfiguration
-        col_centers = [SCREEN_WIDTH // 6, SCREEN_WIDTH // 2, 5 * SCREEN_WIDTH // 6]
-        block_top = 320
-        num_offset = 0
-        text_offset = 50
-        block_height = 100  # Höhe für Nummer + Text
-        # Linke Spalte: 1 Bilderordner wählen
-        left_num = self.font_large.render("1", True, DARK_GREEN)
-        left_num_rect = left_num.get_rect(center=(col_centers[0], block_top + num_offset))
-        self.screen.blit(left_num, left_num_rect)
-        left_title = self.font_medium.render("Bilderordner wählen", True, DARK_GREEN)
-        left_title_rect = left_title.get_rect(center=(col_centers[0], block_top + text_offset))
-        self.screen.blit(left_title, left_title_rect)
-        # Mittlere Spalte: 2 Reihenfolge bestimmen
-        center_num = self.font_large.render("2", True, DARK_GREEN)
-        center_num_rect = center_num.get_rect(center=(col_centers[1], block_top + num_offset))
-        self.screen.blit(center_num, center_num_rect)
-        center_title = self.font_medium.render("Reihenfolge bestimmen", True, DARK_GREEN)
-        center_title_rect = center_title.get_rect(center=(col_centers[1], block_top + text_offset))
-        self.screen.blit(center_title, center_title_rect)
-        # Rechte Spalte: 3 Schwierigkeitsgrad
-        right_num = self.font_large.render("3", True, DARK_GREEN)
-        right_num_rect = right_num.get_rect(center=(col_centers[2], block_top + num_offset))
-        self.screen.blit(right_num, right_num_rect)
-        right_title = self.font_medium.render("Schwierigkeitsgrad", True, DARK_GREEN)
-        right_title_rect = right_title.get_rect(center=(col_centers[2], block_top + text_offset))
-        self.screen.blit(right_title, right_title_rect)
-
-        # Anweisungen unter dem linken Block
-        left_lines = [
+        # Block-Layout-Parameter
+        block_width = 240
+        block_height = 220
+        block_top = 204
+        block_spacing = 48
+        total_width = 3 * block_width + 2 * block_spacing
+        group_left = (SCREEN_WIDTH - total_width) // 2
+        block_num_font = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 32, bold=True)
+        block_title_font = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 26, bold=True)
+        block_label_font = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 18)
+        def render_multiline_centered(text, font, color, center, line_height=30):
+            lines = text.split('\n')
+            total_height = len(lines) * line_height
+            y_start = center[1] - total_height // 2 + line_height // 2
+            for i, line in enumerate(lines):
+                surf = font.render(line, True, color)
+                rect = surf.get_rect(center=(center[0], y_start + i * line_height))
+                self.screen.blit(surf, rect)
+        # Block 1: Bilderordner wählen
+        x1 = group_left
+        y = block_top
+        num1 = block_num_font.render("1", True, DARK_GREEN)
+        num1_rect = num1.get_rect(center=(x1 + block_width // 2, y + 20))
+        self.screen.blit(num1, num1_rect)
+        render_multiline_centered("Bilderordner\nwählen", block_title_font, DARK_GREEN, (x1 + block_width // 2, y + 60))
+        lines1 = [
             "Klicke auf Kacheln, um sie aufzudecken",
             "Drücke LEERTASTE für das nächste Bild"
         ]
-        for i, line in enumerate(left_lines):
-            text = self.font_small.render(line, True, BLACK)
-            text_rect = text.get_rect(center=(col_centers[0], block_top + text_offset + 40 + i * 30))
+        left_text_start_y = y + 105
+        left_text_x = x1 + 32
+        for i, line in enumerate(lines1):
+            text = block_label_font.render(line, True, BLACK)
+            text_rect = text.get_rect(topleft=(left_text_x, left_text_start_y + i * 26))
             self.screen.blit(text, text_rect)
-
-        # Einheitlicher Abstand zu den Buttons
-        button_width = 250
-        button_height = 50
-        start_y = block_top + block_height + 80  # Abstand nach unten
-        start_button = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect((SCREEN_WIDTH - button_width) // 2, start_y, button_width, button_height),
-            text='Spiel starten',
-            manager=self.manager
-        )
-        start_button.show()
+        # Block 2: Reihenfolge bestimmen
+        x2 = x1 + block_width + block_spacing
+        num2 = block_num_font.render("2", True, DARK_GREEN)
+        num2_rect = num2.get_rect(center=(x2 + block_width // 2, y + 20))
+        self.screen.blit(num2, num2_rect)
+        render_multiline_centered("Reihenfolge\nbestimmen", block_title_font, DARK_GREEN, (x2 + block_width // 2, y + 60))
+        btn_font = block_label_font
+        btn_w, btn_h = 120, 36
+        btn_y = y + 105
+        btn1_rect = pygame.Rect(x2 + block_width // 2 - btn_w // 2, btn_y, btn_w, btn_h)
+        btn2_rect = pygame.Rect(x2 + block_width // 2 - btn_w // 2, btn_y + btn_h + 10, btn_w, btn_h)
+        self.menu_btn_rects['sort_name'] = btn1_rect
+        self.menu_btn_rects['sort_shuffle'] = btn2_rect
+        color_name = (43, 101, 75) if self.menu_btn_pressed == 'sort_name' else (45, 106, 79)
+        color_shuffle = (43, 101, 75) if self.menu_btn_pressed == 'sort_shuffle' else (45, 106, 79)
+        pygame.draw.rect(self.screen, color_name, btn1_rect, border_radius=8)
+        btn1_text = btn_font.render("Nach Name", True, (255, 255, 255))
+        btn1_text_rect = btn1_text.get_rect(center=btn1_rect.center)
+        self.screen.blit(btn1_text, btn1_text_rect)
+        pygame.draw.rect(self.screen, color_shuffle, btn2_rect, border_radius=8)
+        btn2_text = btn_font.render("Zufällig", True, (255, 255, 255))
+        btn2_text_rect = btn2_text.get_rect(center=btn2_rect.center)
+        self.screen.blit(btn2_text, btn2_text_rect)
+        # Block 3: Schwierigkeitsgrad
+        x3 = x2 + block_width + block_spacing
+        num3 = block_num_font.render("3", True, DARK_GREEN)
+        num3_rect = num3.get_rect(center=(x3 + block_width // 2, y + 20))
+        self.screen.blit(num3, num3_rect)
+        render_multiline_centered("Schwierigkeits-\ngrad", block_title_font, DARK_GREEN, (x3 + block_width // 2, y + 60))
+        btn3_w, btn3_h = 100, 36
+        btn3_y = y + 105
+        btn_small_rect = pygame.Rect(x3 + block_width // 2 - btn3_w // 2, btn3_y, btn3_w, btn3_h)
+        btn_large_rect = pygame.Rect(x3 + block_width // 2 - btn3_w // 2, btn3_y + btn3_h + 10, btn3_w, btn3_h)
+        self.menu_btn_rects['diff_small'] = btn_small_rect
+        self.menu_btn_rects['diff_large'] = btn_large_rect
+        color_small = (43, 101, 75) if self.menu_btn_pressed == 'diff_small' else (45, 106, 79) if self.selected_difficulty == 3 else (255, 255, 255)
+        color_large = (43, 101, 75) if self.menu_btn_pressed == 'diff_large' else (45, 106, 79) if self.selected_difficulty == 6 else (255, 255, 255)
+        border_small = 3 if self.selected_difficulty == 3 else 2
+        border_large = 3 if self.selected_difficulty == 6 else 2
+        pygame.draw.rect(self.screen, color_small, btn_small_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (45, 106, 79), btn_small_rect, border_small, border_radius=8)
+        text_col_small = (255, 255, 255) if self.selected_difficulty == 3 else (45, 106, 79)
+        text_small = btn_font.render("Klein", True, text_col_small)
+        text_small_rect = text_small.get_rect(center=btn_small_rect.center)
+        self.screen.blit(text_small, text_small_rect)
+        pygame.draw.rect(self.screen, color_large, btn_large_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (45, 106, 79), btn_large_rect, border_large, border_radius=8)
+        text_col_large = (255, 255, 255) if self.selected_difficulty == 6 else (45, 106, 79)
+        text_large = btn_font.render("Groß", True, text_col_large)
+        text_large_rect = text_large.get_rect(center=btn_large_rect.center)
+        self.screen.blit(text_large, text_large_rect)
+        # --- Neue zentrale Button-Gruppe unter Spalte 2 ---
+        button_w, button_h = 200, 50
+        button_spacing = 30
+        block_width = 240
+        block_spacing = 48
+        total_width = 3 * block_width + 2 * block_spacing
+        group_left = (SCREEN_WIDTH - total_width) // 2
+        x2 = group_left + block_width + block_spacing
+        center_x = x2 + block_width // 2
+        button_group_left = center_x - button_w // 2
+        button_group_top = block_top + block_height + 60
+        btn_start_rect = pygame.Rect(button_group_left, button_group_top, button_w, button_h)
+        btn_settings_rect = pygame.Rect(button_group_left, button_group_top + button_h + button_spacing, button_w, button_h)
+        btn_quit_rect = pygame.Rect(button_group_left, button_group_top + 2 * (button_h + button_spacing), button_w, button_h)
+        self.menu_btn_rects['start'] = btn_start_rect
+        self.menu_btn_rects['settings'] = btn_settings_rect
+        self.menu_btn_rects['quit'] = btn_quit_rect
+        BUTTON_GREEN = (26, 112, 49)
+        BUTTON_GREEN_DARK = (24, 106, 46)
+        BUTTON_TEXT_FONT = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 20, bold=True)
+        BUTTON_RADIUS = 10
+        color_start = BUTTON_GREEN_DARK if self.menu_btn_pressed == 'start' else BUTTON_GREEN
+        color_settings = BUTTON_GREEN_DARK if self.menu_btn_pressed == 'settings' else BUTTON_GREEN
+        color_quit = BUTTON_GREEN_DARK if self.menu_btn_pressed == 'quit' else BUTTON_GREEN
+        pygame.draw.rect(self.screen, color_start, btn_start_rect, border_radius=BUTTON_RADIUS)
+        btn_start_text = BUTTON_TEXT_FONT.render("Spiel starten", True, BUTTON_TEXT)
+        btn_start_text_rect = btn_start_text.get_rect(center=btn_start_rect.center)
+        self.screen.blit(btn_start_text, btn_start_text_rect)
+        pygame.draw.rect(self.screen, color_settings, btn_settings_rect, border_radius=BUTTON_RADIUS)
+        btn_settings_text = BUTTON_TEXT_FONT.render("Einstellungen", True, BUTTON_TEXT)
+        btn_settings_text_rect = btn_settings_text.get_rect(center=btn_settings_rect.center)
+        self.screen.blit(btn_settings_text, btn_settings_text_rect)
+        pygame.draw.rect(self.screen, color_quit, btn_quit_rect, border_radius=BUTTON_RADIUS)
+        btn_quit_text = BUTTON_TEXT_FONT.render("Beenden", True, BUTTON_TEXT)
+        btn_quit_text_rect = btn_quit_text.get_rect(center=btn_quit_rect.center)
+        self.screen.blit(btn_quit_text, btn_quit_text_rect)
     
     def draw_settings(self):
         """Einstellungen-Bildschirm zeichnen"""
@@ -540,6 +634,14 @@ class DalliKlickGame:
             text = self.font_small.render(instruction, True, BLACK)
             self.screen.blit(text, (20, y_offset))
             y_offset += 25
+        
+        # Eingabefeld und ggf. Lösung anzeigen
+        if self.solution_checked and self.solution_correct:
+            # Lösung korrekt: Bildtitel anzeigen
+            solution_text = f"Lösung: {self.image_titles[self.current_image_index]}"
+            text_surface = self.font_medium.render(solution_text, True, DARK_GREEN)
+            text_rect = text_surface.get_rect(center=(SCREEN_WIDTH // 2, self.image_y + self.current_image.get_height() + 60))
+            self.screen.blit(text_surface, text_rect)
     
     def draw_victory(self):
         """Siegesschirm zeichnen"""
@@ -559,6 +661,29 @@ class DalliKlickGame:
         menu_text = self.font_medium.render("Drücke ESC für das Hauptmenü", True, BLACK)
         menu_rect = menu_text.get_rect(center=(SCREEN_WIDTH // 2, 500))
         self.screen.blit(menu_text, menu_rect)
+    
+    def set_custom_theme(self):
+        # Erstelle ein Theme mit grünem Button-Hintergrund, weißer Schrift und abgerundeten Ecken
+        theme_string = '''{
+            "button": {
+                "colours": {
+                    "normal_bg": "#218c3a",
+                    "hovered_bg": "#27ae60",
+                    "disabled_bg": "#b2b2b2",
+                    "active_bg": "#145a24",
+                    "normal_text": "#ffffff",
+                    "hovered_text": "#ffffff",
+                    "active_text": "#ffffff",
+                    "disabled_text": "#f0f0f0"
+                },
+                "shape": "rounded_rectangle",
+                "border_width": 0,
+                "shadow_width": 0,
+                "border_radius": 12
+            }
+        }'''
+        import io
+        self.manager.get_theme().load_theme(io.StringIO(theme_string))
     
     def run(self):
         """Hauptspielschleife"""
