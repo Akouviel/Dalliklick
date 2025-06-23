@@ -31,6 +31,7 @@ BLUE = (0, 100, 255)
 GREEN = (0, 255, 0)
 RED = (255, 0, 0)
 DARK_BLUE = (0, 70, 180)
+DARK_GREEN = (0, 100, 0)
 
 class DalliKlickGame:
     def __init__(self):
@@ -55,9 +56,9 @@ class DalliKlickGame:
         self.selected_folder = ""
         
         # UI Elemente
-        self.font_large = pygame.font.Font(None, 48)
-        self.font_medium = pygame.font.Font(None, 36)
-        self.font_small = pygame.font.Font(None, 24)
+        self.font_large = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 48)
+        self.font_medium = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 36)
+        self.font_small = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 24)
         
         # UI Buttons und Elemente
         self.buttons = {}
@@ -401,33 +402,59 @@ class DalliKlickGame:
     def draw_menu(self):
         """Hauptmenü zeichnen"""
         self.screen.fill(WHITE)
-        
         # Titel
         title = self.font_large.render("Dalli Klick 2025", True, BLACK)
         title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, 200))
         self.screen.blit(title, title_rect)
-        
-        # Untertitel
-        subtitle = self.font_medium.render("Ein Bildratespiel für die Hochzeit", True, DARK_BLUE)
-        subtitle_rect = subtitle.get_rect(center=(SCREEN_WIDTH // 2, 250))
-        self.screen.blit(subtitle, subtitle_rect)
-        
-        # Anweisungen
-        instructions = [
-            "Anleitung:",
-            "- Klicke auf Kacheln, um sie aufzudecken",
-            "- Drücke LEERTASTE für das nächste Bild",
-            "- Drücke ESC für das Menü",
-            "",
-            "Viel Spaß beim Spielen!"
+
+        # Spalten-Konfiguration
+        col_centers = [SCREEN_WIDTH // 6, SCREEN_WIDTH // 2, 5 * SCREEN_WIDTH // 6]
+        block_top = 320
+        num_offset = 0
+        text_offset = 50
+        block_height = 100  # Höhe für Nummer + Text
+        # Linke Spalte: 1 Bilderordner wählen
+        left_num = self.font_large.render("1", True, DARK_GREEN)
+        left_num_rect = left_num.get_rect(center=(col_centers[0], block_top + num_offset))
+        self.screen.blit(left_num, left_num_rect)
+        left_title = self.font_medium.render("Bilderordner wählen", True, DARK_GREEN)
+        left_title_rect = left_title.get_rect(center=(col_centers[0], block_top + text_offset))
+        self.screen.blit(left_title, left_title_rect)
+        # Mittlere Spalte: 2 Reihenfolge bestimmen
+        center_num = self.font_large.render("2", True, DARK_GREEN)
+        center_num_rect = center_num.get_rect(center=(col_centers[1], block_top + num_offset))
+        self.screen.blit(center_num, center_num_rect)
+        center_title = self.font_medium.render("Reihenfolge bestimmen", True, DARK_GREEN)
+        center_title_rect = center_title.get_rect(center=(col_centers[1], block_top + text_offset))
+        self.screen.blit(center_title, center_title_rect)
+        # Rechte Spalte: 3 Schwierigkeitsgrad
+        right_num = self.font_large.render("3", True, DARK_GREEN)
+        right_num_rect = right_num.get_rect(center=(col_centers[2], block_top + num_offset))
+        self.screen.blit(right_num, right_num_rect)
+        right_title = self.font_medium.render("Schwierigkeitsgrad", True, DARK_GREEN)
+        right_title_rect = right_title.get_rect(center=(col_centers[2], block_top + text_offset))
+        self.screen.blit(right_title, right_title_rect)
+
+        # Anweisungen unter dem linken Block
+        left_lines = [
+            "Klicke auf Kacheln, um sie aufzudecken",
+            "Drücke LEERTASTE für das nächste Bild"
         ]
-        
-        y_offset = 320
-        for instruction in instructions:
-            text = self.font_small.render(instruction, True, BLACK)
-            text_rect = text.get_rect(center=(SCREEN_WIDTH // 2, y_offset))
+        for i, line in enumerate(left_lines):
+            text = self.font_small.render(line, True, BLACK)
+            text_rect = text.get_rect(center=(col_centers[0], block_top + text_offset + 40 + i * 30))
             self.screen.blit(text, text_rect)
-            y_offset += 30
+
+        # Einheitlicher Abstand zu den Buttons
+        button_width = 250
+        button_height = 50
+        start_y = block_top + block_height + 80  # Abstand nach unten
+        start_button = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect((SCREEN_WIDTH - button_width) // 2, start_y, button_width, button_height),
+            text='Spiel starten',
+            manager=self.manager
+        )
+        start_button.show()
     
     def draw_settings(self):
         """Einstellungen-Bildschirm zeichnen"""
