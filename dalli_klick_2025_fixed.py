@@ -56,7 +56,6 @@ class DalliKlickGame:
         self.revealed_tiles = set()
         self.selected_folder = ""
         self.image_titles = []  # Liste der Bildtitel (Dateinamen ohne Endung)
-        self.solution_input = None  # Eingabefeld für die Lösung
         self.solution_checked = False  # Ob die Lösung schon geprüft wurde
         self.solution_correct = False  # Ob die Lösung korrekt war
         self.last_solution = ""
@@ -102,74 +101,26 @@ class DalliKlickGame:
             text='Menü',
             manager=self.manager
         )
-        # Ordner-Pfad Text
-        self.folder_text = pygame_gui.elements.UILabel(
-            relative_rect=pygame.Rect(100, 500, SCREEN_WIDTH - 200, 30),
-            text=f'Standard-Ordner: {self.default_folder}',
-            manager=self.manager
-        )
-        # Eingabefeld für die Lösung (wird im Spielmodus angezeigt)
-        self.solution_input = pygame_gui.elements.UITextEntryLine(
-            relative_rect=pygame.Rect((SCREEN_WIDTH - 400) // 2, SCREEN_HEIGHT - 180, 400, 40),
-            manager=self.manager
-        )
-        self.solution_input.hide()
         # Alle Buttons zunächst verstecken
         self.hide_all_buttons()
         
     def hide_all_buttons(self):
-        """Entfernt alle pygame_gui-Elemente (Buttons etc.) zuverlässig."""
-        if hasattr(self, "ui_manager"):
-            for element in list(self.ui_manager.ui_group.elements):
-                element.kill()
-            self.ui_manager.clear_and_reset()
-        # Optional: Falls weitere GUI-Elemente wie UIWindow, UIPanel, UIContainer existieren,
-        # sollten diese ebenfalls explizit gekillt werden (z.B. über self.gui_elements oder self.windows)
+        # Entferne alle pygame_gui-Elemente (Buttons etc.) zuverlässig.
+        # (Legacy code for pygame_gui removed)
         if hasattr(self, 'folder_text') and self.folder_text is not None:
-            self.folder_text.hide()
-    
+            pass
+
     def show_menu_buttons(self):
-        """Hauptmenü Buttons anzeigen (keine UIManager-Buttons mehr im Menü)"""
         self.hide_all_buttons()
-        if self.solution_input is not None:
-            self.solution_input.hide()
-    
+
     def show_settings_buttons(self):
-        """Einstellungen Buttons anzeigen (UIManager-Buttons für Settings)"""
         self.hide_all_buttons()
-        if hasattr(self, 'buttons') and isinstance(self.buttons, dict):
-            # Nur für UIManager-Buttons außerhalb des Menüs
-            for key in self.buttons:
-                btn = self.buttons[key]
-                if hasattr(btn, 'show'):
-                    btn.show()
-        if self.solution_input is not None:
-            self.solution_input.hide()
-    
+
     def show_folder_select_buttons(self):
-        """Ordner-Auswahl Buttons anzeigen (UIManager-Buttons für Ordnerauswahl)"""
         self.hide_all_buttons()
-        if hasattr(self, 'buttons') and isinstance(self.buttons, dict):
-            for key in self.buttons:
-                btn = self.buttons[key]
-                if hasattr(btn, 'show'):
-                    btn.show()
-        if hasattr(self, 'folder_text') and self.folder_text is not None:
-            self.folder_text.show()
-        if self.solution_input is not None:
-            self.solution_input.hide()
-    
+
     def show_game_buttons(self):
-        """Spiel-Buttons anzeigen (UIManager-Buttons für das Spiel)"""
         self.hide_all_buttons()
-        if hasattr(self, 'buttons') and isinstance(self.buttons, dict):
-            for key in self.buttons:
-                btn = self.buttons[key]
-                if hasattr(btn, 'show'):
-                    btn.show()
-        if self.solution_input is not None:
-            self.solution_input.set_text("")
-            self.solution_input.show()
         self.solution_checked = False
         self.solution_correct = False
         self.last_solution = ""
@@ -359,16 +310,7 @@ class DalliKlickGame:
                         if self.load_images_from_folder(self.default_folder):
                             self.selected_folder = self.default_folder
                             self.start_game()
-                elif event.user_type == pygame_gui.UI_TEXT_ENTRY_FINISHED and self.solution_input is not None and event.ui_element == self.solution_input:
-                    user_input = self.solution_input.get_text().strip().lower()
-                    image_title = self.image_titles[self.current_image_index].strip().lower() if self.current_image_index < len(self.image_titles) else ""
-                    self.last_solution = user_input
-                    if user_input == image_title:
-                        self.revealed_tiles = set(range(len(self.tiles)))
-                        self.solution_correct = True
-                        self.solution_input.disable()
-                    self.solution_checked = True
-            self.manager.process_events(event)
+                self.manager.process_events(event)
         self.manager.update(time_delta)
         return True
     
@@ -392,8 +334,6 @@ class DalliKlickGame:
         """Siegesschirm anzeigen"""
         self.state = "victory"
         self.hide_all_buttons()
-        if self.solution_input is not None:
-            self.solution_input.hide()
     
     def draw_menu(self):
         self.hide_all_buttons()  # Vor jedem Neuzeichnen des Menüs alle alten UI-Elemente entfernen
@@ -595,7 +535,6 @@ class DalliKlickGame:
             y_offset += 40
     
     def draw_game(self):
-        """Spielbildschirm zeichnen"""
         self.screen.fill(WHITE)
         
         if not self.current_image:
@@ -616,32 +555,6 @@ class DalliKlickGame:
                 # Verdeckte Kachel - zeige grauen Block
                 pygame.draw.rect(self.screen, DARK_GRAY, tile['rect'])
                 pygame.draw.rect(self.screen, BLACK, tile['rect'], 2)  # Rahmen
-        
-        # UI-Informationen
-        info_text = f"Bild {self.current_image_index + 1} von {len(self.images)}"
-        info_surface = self.font_medium.render(info_text, True, BLACK)
-        self.screen.blit(info_surface, (20, 20))
-        
-        # Anweisungen
-        instructions = [
-            "Klicke auf Kacheln zum Aufdecken",
-            "LEERTASTE: Nächstes Bild",
-            "ESC: Zurück zum Menü"
-        ]
-        
-        y_offset = 60
-        for instruction in instructions:
-            text = self.font_small.render(instruction, True, BLACK)
-            self.screen.blit(text, (20, y_offset))
-            y_offset += 25
-        
-        # Eingabefeld und ggf. Lösung anzeigen
-        if self.solution_checked and self.solution_correct:
-            # Lösung korrekt: Bildtitel anzeigen
-            solution_text = f"Lösung: {self.image_titles[self.current_image_index]}"
-            text_surface = self.font_medium.render(solution_text, True, DARK_GREEN)
-            text_rect = text_surface.get_rect(center=(SCREEN_WIDTH // 2, self.image_y + self.current_image.get_height() + 60))
-            self.screen.blit(text_surface, text_rect)
     
     def draw_victory(self):
         """Siegesschirm zeichnen"""
