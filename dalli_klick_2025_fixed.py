@@ -404,17 +404,21 @@ class DalliKlickGame:
         num1 = block_num_font.render("1", True, DARK_GREEN)
         num1_rect = num1.get_rect(center=(x1 + block_width // 2, y + 20))
         self.screen.blit(num1, num1_rect)
-        render_multiline_centered("Bilderordner\nwählen", block_title_font, DARK_GREEN, (x1 + block_width // 2, y + 60))
-        lines1 = [
-            "Klicke auf Kacheln, um sie aufzudecken",
-            "Drücke LEERTASTE für das nächste Bild"
+        # Überschrift (grün, zentriert)
+        title_y = y + 60
+        render_multiline_centered("Bilderordner\nwählen", block_title_font, DARK_GREEN, (x1 + block_width // 2, title_y))
+        # Erklärtexte (klein, zentriert, Bulletpoints, Abstand)
+        font_small = pygame.font.SysFont(None, 18)
+        bullet_lines = [
+            "– Klicke auf Kacheln, um sie aufzudecken",
+            "– Drücke LEERTASTE für das nächste Bild"
         ]
-        left_text_start_y = y + 105
-        left_text_x = x1 + 32
-        for i, line in enumerate(lines1):
-            text = block_label_font.render(line, True, BLACK)
-            text_rect = text.get_rect(topleft=(left_text_x, left_text_start_y + i * 26))
+        bullet_y_start = title_y + 40  # Abstand unter Überschrift
+        for i, line in enumerate(bullet_lines):
+            text = font_small.render(line, True, BLACK)
+            text_rect = text.get_rect(center=(x1 + block_width // 2, bullet_y_start + i * 24))
             self.screen.blit(text, text_rect)
+        # Ausreichend Abstand nach unten zu weiteren UI-Elementen bleibt erhalten
         # Block 2: Reihenfolge bestimmen
         x2 = x1 + block_width + block_spacing
         num2 = block_num_font.render("2", True, DARK_GREEN)
