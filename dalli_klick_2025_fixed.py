@@ -81,8 +81,11 @@ class DalliKlickGame:
         self.shuffle_mode = False
         
         # Buttons für den Spielmodus als Attribute anlegen
-        self.btn_menu_rect = pygame.Rect(30, 30, 120, 44)
-        self.btn_next_rect = pygame.Rect(SCREEN_WIDTH - 150, 30, 120, 44)
+        button_w, button_h = 160, 44
+        spacing = 40
+        self.btn_menu_rect = pygame.Rect(spacing, spacing, button_w, button_h)
+        self.btn_next_rect = pygame.Rect(SCREEN_WIDTH - button_w - spacing, spacing, button_w, button_h)
+        self.btn_reveal_rect = None
         
     def create_ui_elements(self):
         """UI Elemente erstellen (nur noch für andere Screens, nicht für das Menü)"""
@@ -274,6 +277,8 @@ class DalliKlickGame:
                         self.state = "menu"
                     elif self.btn_next_rect.collidepoint(event.pos):
                         self.next_image()
+                    elif self.btn_reveal_rect and self.btn_reveal_rect.collidepoint(event.pos):
+                        self.revealed_tiles = set(range(len(self.tiles)))
                     else:
                         self.handle_click(event.pos)
             elif event.type == pygame.MOUSEBUTTONUP:
@@ -557,13 +562,19 @@ class DalliKlickGame:
                 self.screen.blit(tile['surface'], tile['rect'])
             else:
                 pygame.draw.rect(self.screen, DARK_GRAY, tile['rect'])
-                pygame.draw.rect(self.screen, BLACK, tile['rect'], 2)  # Rahmen
-        # Nur Text für die Buttons anzeigen (keine grünen Hintergründe mehr)
+                pygame.draw.rect(self.screen, BLACK, tile['rect'], 2)
+        # Entferne alte graue Menü- und Nächstes-Bild-Buttons (keine draw.rect/screen.blit mehr für diese)
+        # Die neuen runden Buttons werden von pygame_gui oder eigener Klasse gezeichnet
+        # Bild aufdecken-Button bleibt wie gehabt
+        button_w, button_h = 200, 50
+        reveal_x = (SCREEN_WIDTH - button_w) // 2
+        reveal_y = self.image_y + self.current_image.get_height() + 40
+        self.btn_reveal_rect = pygame.Rect(reveal_x, reveal_y, button_w, button_h)
+        pygame.draw.rect(self.screen, DARK_GRAY, self.btn_reveal_rect, border_radius=8)
         font = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 28)
-        menu_text = font.render("Menü", True, (255, 255, 255))
-        next_text = font.render("Nächstes Bild", True, (255, 255, 255))
-        self.screen.blit(menu_text, self.btn_menu_rect.move(0, 6).center)
-        self.screen.blit(next_text, self.btn_next_rect.move(0, 6).center)
+        reveal_text = font.render("Bild aufdecken", True, (255, 255, 255))
+        reveal_text_rect = reveal_text.get_rect(center=self.btn_reveal_rect.center)
+        self.screen.blit(reveal_text, reveal_text_rect)
     
     def draw_victory(self):
         """Siegesschirm zeichnen"""
