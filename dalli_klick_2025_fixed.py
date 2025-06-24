@@ -122,8 +122,6 @@ class DalliKlickGame:
     def show_settings_buttons(self):
         self.hide_all_buttons()
 
-    def show_folder_select_buttons(self):
-        self.hide_all_buttons()
 
     def show_game_buttons(self):
         self.hide_all_buttons()
