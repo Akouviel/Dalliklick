@@ -80,6 +80,10 @@ class DalliKlickGame:
         self.menu_btn_pressed = None  # Für visuelles Feedback
         self.shuffle_mode = False
         
+        # Buttons für den Spielmodus als Attribute anlegen
+        self.btn_menu_rect = pygame.Rect(30, 30, 120, 44)
+        self.btn_next_rect = pygame.Rect(SCREEN_WIDTH - 150, 30, 120, 44)
+        
     def create_ui_elements(self):
         """UI Elemente erstellen (nur noch für andere Screens, nicht für das Menü)"""
         # Entferne alle UIManager-Buttons für das Menü!
@@ -107,8 +111,7 @@ class DalliKlickGame:
     def hide_all_buttons(self):
         # Entferne alle pygame_gui-Elemente (Buttons etc.) zuverlässig.
         # (Legacy code for pygame_gui removed)
-        if hasattr(self, 'folder_text') and self.folder_text is not None:
-            pass
+        pass
 
     def show_menu_buttons(self):
         self.hide_all_buttons()
@@ -267,7 +270,12 @@ class DalliKlickGame:
                             self.menu_btn_pressed = key
                             break
                 elif event.button == 1 and self.state == "game":
-                    self.handle_click(event.pos)
+                    if self.btn_menu_rect.collidepoint(event.pos):
+                        self.state = "menu"
+                    elif self.btn_next_rect.collidepoint(event.pos):
+                        self.next_image()
+                    else:
+                        self.handle_click(event.pos)
             elif event.type == pygame.MOUSEBUTTONUP:
                 if self.state == "menu" and self.menu_btn_pressed:
                     key = self.menu_btn_pressed
@@ -536,25 +544,26 @@ class DalliKlickGame:
     
     def draw_game(self):
         self.screen.fill(WHITE)
-        
         if not self.current_image:
             return
-        
         # Hintergrund für das Bild
         background_rect = pygame.Rect(self.image_x - 10, self.image_y - 10, 
                                     self.current_image.get_width() + 20, 
                                     self.current_image.get_height() + 20)
         pygame.draw.rect(self.screen, LIGHT_GRAY, background_rect)
-        
         # Kacheln zeichnen
         for i, tile in enumerate(self.tiles):
             if i in self.revealed_tiles:
-                # Aufgedeckte Kachel - zeige Bildausschnitt
                 self.screen.blit(tile['surface'], tile['rect'])
             else:
-                # Verdeckte Kachel - zeige grauen Block
                 pygame.draw.rect(self.screen, DARK_GRAY, tile['rect'])
                 pygame.draw.rect(self.screen, BLACK, tile['rect'], 2)  # Rahmen
+        # Nur Text für die Buttons anzeigen (keine grünen Hintergründe mehr)
+        font = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 28)
+        menu_text = font.render("Menü", True, (255, 255, 255))
+        next_text = font.render("Nächstes Bild", True, (255, 255, 255))
+        self.screen.blit(menu_text, self.btn_menu_rect.move(0, 6).center)
+        self.screen.blit(next_text, self.btn_next_rect.move(0, 6).center)
     
     def draw_victory(self):
         """Siegesschirm zeichnen"""
