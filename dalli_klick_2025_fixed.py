@@ -60,6 +60,7 @@ class DalliKlickGame:
         self.solution_correct = False  # Ob die Lösung korrekt war
         self.last_solution = ""
         self.selected_difficulty = 3  # Standard: 3x3
+        self.image_fully_revealed = False  # Ob das aktuelle Bild vollständig aufgedeckt ist
         
         # UI Elemente
         self.font_large = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 48)
@@ -175,6 +176,7 @@ class DalliKlickGame:
         self.current_image_index = 0
         self.state = "game"
         self.grid_size = self.selected_difficulty
+        self.image_fully_revealed = False  # Reset für neues Spiel
         self.load_current_image()
         self.show_game_buttons()
         return True
@@ -277,6 +279,7 @@ class DalliKlickGame:
                         self.next_image()
                     elif self.btn_reveal_rect and self.btn_reveal_rect.collidepoint(event.pos):
                         self.revealed_tiles = set(range(len(self.tiles)))
+                        self.image_fully_revealed = True  # Bild ist jetzt vollständig aufgedeckt
                     else:
                         self.handle_click(event.pos)
             elif event.type == pygame.MOUSEBUTTONUP:
@@ -331,11 +334,15 @@ class DalliKlickGame:
             if tile['rect'].collidepoint(pos):
                 if i not in self.revealed_tiles:
                     self.revealed_tiles.add(i)
+                    # Prüfe, ob alle Kacheln aufgedeckt sind
+                    if len(self.revealed_tiles) == len(self.tiles):
+                        self.image_fully_revealed = True
                 break
     
     def next_image(self):
         """Zum nächsten Bild wechseln"""
         self.current_image_index += 1
+        self.image_fully_revealed = False  # Reset für neues Bild
         if self.current_image_index < len(self.images):
             self.load_current_image()
         else:
@@ -577,6 +584,14 @@ class DalliKlickGame:
         reveal_text = font.render("Bild aufdecken", True, (255, 255, 255))
         reveal_text_rect = reveal_text.get_rect(center=self.btn_reveal_rect.center)
         self.screen.blit(reveal_text, reveal_text_rect)
+        
+        # Bildname anzeigen, wenn das Bild vollständig aufgedeckt ist
+        if self.image_fully_revealed and self.current_image_index < len(self.image_titles):
+            image_name = self.image_titles[self.current_image_index]
+            name_font = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 26)
+            name_text = name_font.render(image_name, True, (255, 255, 255))
+            name_rect = name_text.get_rect(center=(SCREEN_WIDTH // 2, self.image_y + self.current_image.get_height() + 20))
+            self.screen.blit(name_text, name_rect)
     
     def draw_victory(self):
         """Siegesschirm zeichnen"""
