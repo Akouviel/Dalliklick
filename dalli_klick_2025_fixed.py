@@ -604,27 +604,53 @@ class DalliKlickGame:
         
         # Bildname anzeigen, wenn das Bild vollständig aufgedeckt ist
         if self.image_fully_revealed and getattr(self, 'current_image_name', None):
-            name_font = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 30, bold=True)
-            name_text = name_font.render(self.current_image_name, True, (255, 255, 255))
-            text_w, text_h = name_text.get_size()
-            padding_x, padding_y = 18, 10
-            box_w, box_h = text_w + 2 * padding_x, text_h + 2 * padding_y
+            # Schriftart und -größe passend zum "Bild aufdecken"-Button (28pt - 1pt = 27pt)
+            name_font = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 27)
+            
+            # Text ohne Dateiendung extrahieren
+            text = os.path.splitext(os.path.basename(self.current_image_name))[0]
+            
+            # Dynamische Breitenberechnung mit pygame.font.Font.size()
+            text_width, text_height = name_font.size(text)
+            
+            # Padding und Box-Dimensionen
+            padding_x, padding_y = 10, 8
+            box_width = text_width + 2 * padding_x
+            box_height = text_height + 2 * padding_y
+            
+            # Bildpositionen
             img_x = self.image_x
             img_y = self.image_y
             img_w = self.current_image.get_width()
             img_h = self.current_image.get_height()
-            # Standard: rechts neben dem Bild
+            
+            # Standard: rechts neben dem Bild, vertikal zentriert
             box_x = img_x + img_w + 20
-            box_y = img_y + (img_h - box_h) // 2
-            # Prüfe, ob rechts genug Platz ist, sonst links
-            if box_x + box_w > SCREEN_WIDTH - 20:
-                box_x = img_x - box_w - 20
-            # Halbtransparenter Hintergrund
-            box_surface = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
-            box_surface.fill((0, 0, 0, 180))
-            # Text auf Box
-            box_surface.blit(name_text, (padding_x, padding_y))
-            # Box auf Screen
+            box_y = img_y + (img_h - box_height) // 2
+            
+            # Prüfe, ob der Kasten aus dem Fenster hinausragt
+            if box_x + box_width > SCREEN_WIDTH - 20:
+                # Automatisch nach links verschieben, bis er passt
+                box_x = SCREEN_WIDTH - box_width - 20
+                
+                # Falls immer noch zu breit, links neben das Bild setzen
+                if box_x < img_x - box_width - 20:
+                    box_x = img_x - box_width - 20
+            
+            # Halbtransparenter hellgrauer Hintergrund mit alpha=230
+            box_surface = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+            box_surface.fill((200, 200, 200, 230))  # RGB(200, 200, 200) mit alpha=230
+            
+            # Runde Ecken zeichnen (border_radius = 6)
+            pygame.draw.rect(box_surface, (200, 200, 200, 230), 
+                           (0, 0, box_width, box_height), border_radius=6)
+            
+            # Text rendern und auf Box zentrieren
+            name_text = name_font.render(text, True, (0, 0, 0))  # Schwarzer Text
+            text_rect = name_text.get_rect(center=(box_width // 2, box_height // 2))
+            box_surface.blit(name_text, text_rect)
+            
+            # Box auf Screen zeichnen
             self.screen.blit(box_surface, (box_x, box_y))
     
     def draw_victory(self):
