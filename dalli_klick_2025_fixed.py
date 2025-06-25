@@ -301,6 +301,8 @@ class DalliKlickGame:
                             self.shuffle_mode = True
                         elif key == 'diff_small' or key == 'klein':
                             self.selected_difficulty = 3
+                        elif key == 'diff_medium' or key == 'mittel':
+                            self.selected_difficulty = 4
                         elif key == 'diff_large' or key == 'gross':
                             self.selected_difficulty = 6
                     self.menu_btn_pressed = None
@@ -371,6 +373,7 @@ class DalliKlickGame:
             'nach_name': {'rect': self.menu_btn_rects.get('sort_name'), 'text': 'Nach Name'},
             'zufaellig': {'rect': self.menu_btn_rects.get('sort_shuffle'), 'text': 'Zufällig'},
             'klein': {'rect': self.menu_btn_rects.get('diff_small'), 'text': 'Klein'},
+            'mittel': {'rect': self.menu_btn_rects.get('diff_medium'), 'text': 'Mittel'},
             'gross': {'rect': self.menu_btn_rects.get('diff_large'), 'text': 'Groß'},
             'start': {'rect': pygame.Rect(button_group_left, button_group_top, button_w, button_h), 'text': 'Spiel starten'},
             'settings': {'rect': pygame.Rect(button_group_left, button_group_top + button_h + button_spacing, button_w, button_h), 'text': 'Einstellungen'},
@@ -378,7 +381,7 @@ class DalliKlickGame:
         }
         # 🧱 Block 4: Zusätzliche Absicherung – lösche alte Button-Einträge
         for key in list(self.buttons.keys()):
-            if key not in ['nach_name', 'zufaellig', 'klein', 'gross', 'start', 'settings', 'beenden']:
+            if key not in ['nach_name', 'zufaellig', 'klein', 'mittel', 'gross', 'start', 'settings', 'beenden']:
                 del self.buttons[key]
         self.screen.fill(WHITE)
         # Titel etwas nach unten verschoben
@@ -456,12 +459,16 @@ class DalliKlickGame:
         btn3_w, btn3_h = 100, 36
         btn3_y = y + 105
         btn_small_rect = pygame.Rect(x3 + block_width // 2 - btn3_w // 2, btn3_y, btn3_w, btn3_h)
-        btn_large_rect = pygame.Rect(x3 + block_width // 2 - btn3_w // 2, btn3_y + btn3_h + 10, btn3_w, btn3_h)
+        btn_medium_rect = pygame.Rect(x3 + block_width // 2 - btn3_w // 2, btn3_y + btn3_h + 10, btn3_w, btn3_h)
+        btn_large_rect = pygame.Rect(x3 + block_width // 2 - btn3_w // 2, btn3_y + 2 * (btn3_h + 10), btn3_w, btn3_h)
         self.menu_btn_rects['diff_small'] = btn_small_rect
+        self.menu_btn_rects['diff_medium'] = btn_medium_rect
         self.menu_btn_rects['diff_large'] = btn_large_rect
         color_small = (43, 101, 75) if self.menu_btn_pressed == 'diff_small' else (45, 106, 79) if self.selected_difficulty == 3 else (255, 255, 255)
+        color_medium = (43, 101, 75) if self.menu_btn_pressed == 'diff_medium' else (45, 106, 79) if self.selected_difficulty == 4 else (255, 255, 255)
         color_large = (43, 101, 75) if self.menu_btn_pressed == 'diff_large' else (45, 106, 79) if self.selected_difficulty == 6 else (255, 255, 255)
         border_small = 3 if self.selected_difficulty == 3 else 2
+        border_medium = 3 if self.selected_difficulty == 4 else 2
         border_large = 3 if self.selected_difficulty == 6 else 2
         pygame.draw.rect(self.screen, color_small, btn_small_rect, border_radius=8)
         pygame.draw.rect(self.screen, (45, 106, 79), btn_small_rect, border_small, border_radius=8)
@@ -469,6 +476,12 @@ class DalliKlickGame:
         text_small = btn_font.render("Klein", True, text_col_small)
         text_small_rect = text_small.get_rect(center=btn_small_rect.center)
         self.screen.blit(text_small, text_small_rect)
+        pygame.draw.rect(self.screen, color_medium, btn_medium_rect, border_radius=8)
+        pygame.draw.rect(self.screen, (45, 106, 79), btn_medium_rect, border_medium, border_radius=8)
+        text_col_medium = (255, 255, 255) if self.selected_difficulty == 4 else (45, 106, 79)
+        text_medium = btn_font.render("Mittel", True, text_col_medium)
+        text_medium_rect = text_medium.get_rect(center=btn_medium_rect.center)
+        self.screen.blit(text_medium, text_medium_rect)
         pygame.draw.rect(self.screen, color_large, btn_large_rect, border_radius=8)
         pygame.draw.rect(self.screen, (45, 106, 79), btn_large_rect, border_large, border_radius=8)
         text_col_large = (255, 255, 255) if self.selected_difficulty == 6 else (45, 106, 79)
