@@ -190,7 +190,11 @@ class DalliKlickGame:
             
         # Bild laden und an Bildschirmgröße anpassen
         original_image = self.images[self.current_image_index]
-        
+        # Bildname extrahieren
+        if self.current_image_index < len(self.image_titles):
+            self.current_image_name = self.image_titles[self.current_image_index]
+        else:
+            self.current_image_name = ""
         # Berechne verfügbaren Platz für das Bild (mit Abstand für UI)
         image_area_width = SCREEN_WIDTH - 100
         image_area_height = SCREEN_HEIGHT - 200
@@ -599,12 +603,29 @@ class DalliKlickGame:
         self.screen.blit(reveal_text, reveal_text_rect)
         
         # Bildname anzeigen, wenn das Bild vollständig aufgedeckt ist
-        if self.image_fully_revealed and self.current_image_index < len(self.image_titles):
-            image_name = self.image_titles[self.current_image_index]
-            name_font = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 26)
-            name_text = name_font.render(image_name, True, (255, 255, 255))
-            name_rect = name_text.get_rect(center=(SCREEN_WIDTH // 2, self.image_y + self.current_image.get_height() + 20))
-            self.screen.blit(name_text, name_rect)
+        if self.image_fully_revealed and getattr(self, 'current_image_name', None):
+            name_font = pygame.font.SysFont(['Inter', 'Helvetica', 'Arial'], 30, bold=True)
+            name_text = name_font.render(self.current_image_name, True, (255, 255, 255))
+            text_w, text_h = name_text.get_size()
+            padding_x, padding_y = 18, 10
+            box_w, box_h = text_w + 2 * padding_x, text_h + 2 * padding_y
+            img_x = self.image_x
+            img_y = self.image_y
+            img_w = self.current_image.get_width()
+            img_h = self.current_image.get_height()
+            # Standard: rechts neben dem Bild
+            box_x = img_x + img_w + 20
+            box_y = img_y + (img_h - box_h) // 2
+            # Prüfe, ob rechts genug Platz ist, sonst links
+            if box_x + box_w > SCREEN_WIDTH - 20:
+                box_x = img_x - box_w - 20
+            # Halbtransparenter Hintergrund
+            box_surface = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+            box_surface.fill((0, 0, 0, 180))
+            # Text auf Box
+            box_surface.blit(name_text, (padding_x, padding_y))
+            # Box auf Screen
+            self.screen.blit(box_surface, (box_x, box_y))
     
     def draw_victory(self):
         """Siegesschirm zeichnen"""
