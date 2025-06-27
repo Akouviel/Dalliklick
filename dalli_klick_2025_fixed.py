@@ -16,9 +16,12 @@ from pathlib import Path
 # Pygame initialisieren
 pygame.init()
 
+# Bildschirmgröße ermitteln
+info = pygame.display.Info()
+SCREEN_WIDTH = info.current_w
+SCREEN_HEIGHT = info.current_h
+
 # Konstanten
-SCREEN_WIDTH = 1200
-SCREEN_HEIGHT = 800
 FPS = 60
 
 # Farben
@@ -36,7 +39,9 @@ BUTTON_TEXT = (255, 255, 255)  # Weiß für Text auf Buttons
 
 class DalliKlickGame:
     def __init__(self):
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        # Echtes Vollbild mit pygame-ce Flags
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 
+                                             pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF)
         pygame.display.set_caption("Dalli Klick 2025")
         self.clock = pygame.time.Clock()
         
@@ -87,6 +92,9 @@ class DalliKlickGame:
         self.btn_menu_rect = pygame.Rect(spacing, spacing, button_w, button_h)
         self.btn_next_rect = pygame.Rect(SCREEN_WIDTH - button_w - spacing, spacing, button_w, button_h)
         self.btn_reveal_rect = None
+        
+        # Vollbild-Status
+        self.fullscreen = True
         
     def create_ui_elements(self):
         """UI Elemente erstellen (nur noch für andere Screens, nicht für das Menü)"""
@@ -270,6 +278,9 @@ class DalliKlickGame:
                         self.show_menu_buttons()
                 elif event.key == pygame.K_SPACE and self.state == "game":
                     self.next_image()
+                elif event.key == pygame.K_F11:
+                    # Vollbild-Toggle mit F11
+                    self.toggle_fullscreen()
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if self.state == "menu":
                     for key, rect in self.menu_btn_rects.items():
@@ -694,6 +705,28 @@ class DalliKlickGame:
         }'''
         import io
         self.manager.get_theme().load_theme(io.StringIO(theme_string))
+    
+    def toggle_fullscreen(self):
+        """Zwischen Vollbild und Fenstermodus wechseln"""
+        global SCREEN_WIDTH, SCREEN_HEIGHT
+        
+        if self.fullscreen:
+            # Zu Fenstermodus wechseln
+            self.screen = pygame.display.set_mode((1200, 800))
+            SCREEN_WIDTH, SCREEN_HEIGHT = 1200, 800
+            self.fullscreen = False
+        else:
+            # Zu Vollbild wechseln
+            info = pygame.display.Info()
+            SCREEN_WIDTH, SCREEN_HEIGHT = info.current_w, info.current_h
+            self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 
+                                                 pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF)
+            self.fullscreen = True
+        
+        # UI Manager neu initialisieren
+        self.manager = pygame_gui.UIManager((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.set_custom_theme()
+        self.create_ui_elements()
     
     def run(self):
         """Hauptspielschleife"""
